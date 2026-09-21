@@ -1,6 +1,9 @@
 export const SERVICES = [
   ["alvenaria", "Alvenaria Periférica"],
   ["chapisco", "Chapisco"],
+  ["massa interna", "Massa Interna"],
+  ["contrapiso", "Contrapiso"],
+  ["impermeabilizacao", "Impermeabilização"],
   ["hidraulica", "Instalações Hidráulicas"],
   ["eletrica", "Instalações Elétricas"],
   ["emboco", "Emboço"],
