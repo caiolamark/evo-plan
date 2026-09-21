@@ -86,38 +86,46 @@ function FloorPlan({
     centerRef.current = center;
   }, [center]);
 
+  // ---- carrega hotspots do Supabase ao trocar de pavimento ----
   useEffect(() => {
-    const stored = loadHotspots(pavimento.id);
-    const initial = stored || pavimento.hotspots || [];
-    setHotspots(initial);
+    let cancelled = false;
+    const load = async () => {
+      const stored = await loadHotspots(pavimento.id);
+      if (cancelled) return;
+      const initial = stored || pavimento.hotspots || [];
+      setHotspots(initial);
 
-    const z = pavimento.zoomInicial ?? 1;
-    const rawCx = pavimento.centerInicial?.cx ?? pavimento.baseW / 2;
-    const rawCy = pavimento.centerInicial?.cy ?? pavimento.baseH / 2;
+      const z = pavimento.zoomInicial ?? 1;
+      const rawCx = pavimento.centerInicial?.cx ?? pavimento.baseW / 2;
+      const rawCy = pavimento.centerInicial?.cy ?? pavimento.baseH / 2;
+      const c = clampCenterGeneric(
+        rawCx,
+        rawCy,
+        z,
+        pavimento.baseW,
+        pavimento.baseH
+      );
 
-    const c = clampCenterGeneric(
-      rawCx,
-      rawCy,
-      z,
-      pavimento.baseW,
-      pavimento.baseH
-    );
-
-    setZoom(z);
-    setCenter(c);
-
-    setHover(null);
-    setEditMode(false);
-    setDrawMode("select");
-    setCurrentPoints([]);
-    setRectStart(null);
-    setRectPreview(null);
-    setPanning(false);
-    panStart.current = null;
-    if (onHotspotsChange) onHotspotsChange(pavimento.id, initial);
+      setZoom(z);
+      setCenter(c);
+      setHover(null);
+      setEditMode(false);
+      setDrawMode("select");
+      setCurrentPoints([]);
+      setRectStart(null);
+      setRectPreview(null);
+      setPanning(false);
+      panStart.current = null;
+      if (onHotspotsChange) onHotspotsChange();
+    };
+    load();
+    return () => {
+      cancelled = true;
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pavimento.id]);
 
+  // ---- listener nativo de wheel ----
   useEffect(() => {
     const el = stageRef.current;
     if (!el) return;
@@ -165,13 +173,12 @@ function FloorPlan({
     return () => el.removeEventListener("wheel", onWheel);
   }, [pavimento.baseW, pavimento.baseH, pavimento.zoomInicial]);
 
-  function applyHotspots(updater) {
-    setHotspots((hs) => {
-      const next = typeof updater === "function" ? updater(hs) : updater;
-      saveHotspots(pavimento.id, next);
-      if (onHotspotsChange) onHotspotsChange(pavimento.id, next);
-      return next;
-    });
+  // ---- persiste hotspots no Supabase (async) ----
+  async function applyHotspots(updater) {
+    const next = typeof updater === "function" ? updater(hotspots) : updater;
+    setHotspots(next);
+    await saveHotspots(pavimento.id, next);
+    if (onHotspotsChange) onHotspotsChange();
   }
 
   const vbW = BASE_W / zoom;
@@ -336,7 +343,7 @@ function FloorPlan({
     if (!editMode || drawMode !== "retangulo" || !rectStart || !rectPreview)
       return;
     if (rectPreview.w > 4 && rectPreview.h > 4) {
-      const id = `${pavimento.id}-area-${nextId++}`;
+      const id = `${pavimento.id}-area-${nextId++}-${Date.now()}`;
       applyHotspots((hs) => [
         ...hs,
         {
@@ -369,7 +376,7 @@ function FloorPlan({
 
   function finalizarPontos() {
     const prefix = drawMode === "linha" ? "alvenaria" : "area";
-    const id = `${pavimento.id}-${prefix}-${nextId++}`;
+    const id = `${pavimento.id}-${prefix}-${nextId++}-${Date.now()}`;
     if (drawMode === "linha") {
       applyHotspots((hs) => [
         ...hs,

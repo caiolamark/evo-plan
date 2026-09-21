@@ -1,40 +1,49 @@
-// src/components/App.jsx
-import React, { useState, useMemo, useCallback } from "react";
+// src/App.jsx
+import React, { useState, useMemo, useCallback, useEffect } from "react";
 
-import Header from "./Header";
-import Sidebar from "./Sidebar";
-import FloorPlan from "./FloorPlan";
-import Detail from "./Detail";
-import Timeline from "./Timeline";
-import DateNav from "./DateNav";
+import Header from "./components/Header";
+import Sidebar from "./components/Sidebar";
+import FloorPlan from "./components/FloorPlan";
+import Detail from "./components/Detail";
+import Timeline from "./components/Timeline";
+import DateNav from "./components/DateNav";
 
-import { START, addDays, fmtFull } from "../data/planning";
-import { PAVIMENTOS, getPavimento } from "../data/pavimentos";
-import { loadHotspots } from "../data/storage";
-import { useActivities } from "../hooks/useActivities";
+import { START, addDays, fmtFull } from "./data/planning";
+import { PAVIMENTOS, getPavimento } from "./data/pavimentos";
+import { loadHotspots } from "./data/storage";
+import { useActivities } from "./hooks/useActivities";
 
 function App() {
   const [date, setDate] = useState(START);
   const [pavimentoId, setPavimentoId] = useState(PAVIMENTOS[0].id);
   const [selectedEnv, setSelectedEnv] = useState(null);
   const [hotspotsVersion, setHotspotsVersion] = useState(0);
+  const [pavimentoHotspots, setPavimentoHotspots] = useState([]);
 
   const pavimento = getPavimento(pavimentoId);
 
-  const pavimentoHotspots = useMemo(() => {
-    const stored = loadHotspots(pavimento.id);
-    return stored || pavimento.hotspots || [];
+  // carrega hotspots do Supabase ao trocar de pavimento
+  useEffect(() => {
+    let cancelled = false;
+    const load = async () => {
+      const stored = await loadHotspots(pavimento.id);
+      if (cancelled) return;
+      setPavimentoHotspots(stored || pavimento.hotspots || []);
+    };
+    load();
+    return () => {
+      cancelled = true;
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pavimento.id, hotspotsVersion]);
 
+  // lista de TODOS os ambientes pra o hook de atividades indexar
   const allEnvIds = useMemo(() => {
     return PAVIMENTOS.flatMap((p) => {
-      const stored = loadHotspots(p.id);
-      const list = stored || p.hotspots || [];
+      const list = p.hotspots || [];
       return list.filter((h) => h.tipo !== "alvenaria").map((h) => h.id);
     });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [hotspotsVersion]);
+  }, []);
 
   const activities = useActivities(allEnvIds);
 
@@ -42,7 +51,6 @@ function App() {
     ? activities.getByEnv(selectedEnv.id)
     : [];
 
-  // todas as atividades do pavimento atual
   const allActivitiesDoPavimento = useMemo(() => {
     const ids = pavimentoHotspots
       .filter((h) => h.tipo !== "alvenaria")
