@@ -43,39 +43,26 @@ export async function saveHotspots(pavId, hotspots) {
 
   const idsAtuais = rows.map((r) => r.id);
 
-  const { data: existentes, error: fetchError } = await supabase
+  const { data: existentes } = await supabase
     .from("hotspots")
     .select("id")
     .eq("pavimento_id", pavId);
-
-  if (fetchError) {
-    console.error("Erro ao buscar hotspots existentes:", fetchError);
-    return;
-  }
 
   const idsRemover = (existentes || [])
     .map((e) => e.id)
     .filter((id) => !idsAtuais.includes(id));
 
   if (idsRemover.length > 0) {
-    const { error } = await supabase
-      .from("hotspots")
-      .delete()
-      .in("id", idsRemover);
-    if (error) console.error("Erro ao remover hotspots antigos:", error);
+    await supabase.from("hotspots").delete().in("id", idsRemover);
   }
 
   if (rows.length === 0) return;
 
-  const { error: upError } = await supabase
+  const { error } = await supabase
     .from("hotspots")
     .upsert(rows, { onConflict: "id" });
 
-  if (upError) {
-    console.error("Erro ao salvar hotspots:", upError);
-  } else {
-    console.log("Hotspots salvos com sucesso:", rows.length, "itens");
-  }
+  if (error) console.error("Erro ao salvar hotspots:", error);
 }
 
 // ---------- ATIVIDADES ----------
@@ -99,7 +86,19 @@ export async function loadActivities(envId) {
   }));
 }
 
-export async function saveActivities(envId, activities) {
+// 🔒 fila de salvamento: garante que saves do mesmo envId rodem em sequência
+const saveQueues = {};
+
+export function saveActivities(envId, activities) {
+  const prev = saveQueues[envId] || Promise.resolve();
+  const next = prev
+    .catch(() => {}) // ignora erros anteriores
+    .then(() => doSaveActivities(envId, activities));
+  saveQueues[envId] = next;
+  return next;
+}
+
+async function doSaveActivities(envId, activities) {
   const rows = (activities || []).map((a) => ({
     id: String(a.id),
     ambiente_id: String(envId),
@@ -114,51 +113,31 @@ export async function saveActivities(envId, activities) {
         : new Date(a.fim).toISOString().slice(0, 10),
   }));
 
-  console.log("saveActivities called:", envId, rows);
-
   const idsAtuais = rows.map((r) => r.id);
 
-  // Busca o que já existe pra saber o que remover
-  const { data: existentes, error: fetchError } = await supabase
+  const { data: existentes } = await supabase
     .from("activities")
     .select("id")
     .eq("ambiente_id", envId);
-
-  if (fetchError) {
-    console.error("Erro ao buscar atividades existentes:", fetchError);
-    return;
-  }
 
   const idsRemover = (existentes || [])
     .map((e) => e.id)
     .filter((id) => !idsAtuais.includes(id));
 
   if (idsRemover.length > 0) {
-    const { error } = await supabase
-      .from("activities")
-      .delete()
-      .in("id", idsRemover);
-    if (error) console.error("Erro ao remover atividades antigas:", error);
+    await supabase.from("activities").delete().in("id", idsRemover);
   }
 
-  if (rows.length === 0) {
-    console.log("Nada pra salvar (lista vazia)");
-    return;
-  }
+  if (rows.length === 0) return;
 
-  const { data, error: upError } = await supabase
+  const { error } = await supabase
     .from("activities")
-    .upsert(rows, { onConflict: "id" })
-    .select();
+    .upsert(rows, { onConflict: "id" });
 
-  if (upError) {
-    console.error("Erro ao salvar atividades:", upError);
-    console.error("message:", upError.message);
-    console.error("details:", upError.details);
-    console.error("hint:", upError.hint);
-    console.error("code:", upError.code);
+  if (error) {
+    console.error("Erro ao salvar atividades:", error);
   } else {
-    console.log("Atividades salvas com sucesso:", data);
+    console.log("Atividades salvas:", rows.length, "itens");
   }
 }
 
