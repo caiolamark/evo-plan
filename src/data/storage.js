@@ -26,21 +26,7 @@ export async function loadHotspots(pavId) {
 }
 
 export async function saveHotspots(pavId, hotspots) {
-  // 1) Limpa os antigos
-  const { error: delError } = await supabase
-    .from("hotspots")
-    .delete()
-    .eq("pavimento_id", pavId);
-
-  if (delError) {
-    console.error("Erro ao limpar hotspots:", delError);
-    return;
-  }
-
-  if (!hotspots || hotspots.length === 0) return;
-
-  // 2) Monta as linhas no formato EXATO da tabela
-  const rows = hotspots.map((h) => {
+  const rows = (hotspots || []).map((h) => {
     const isArea = h.tipo !== "poligono" && h.tipo !== "alvenaria";
     return {
       id: String(h.id),
@@ -51,22 +37,44 @@ export async function saveHotspots(pavId, hotspots) {
       y: isArea && h.y != null ? Number(h.y) : null,
       w: isArea && h.w != null ? Number(h.w) : null,
       h: isArea && h.h != null ? Number(h.h) : null,
-      pontos:
-        h.pontos && Array.isArray(h.pontos) ? h.pontos : null,
+      pontos: h.pontos && Array.isArray(h.pontos) ? h.pontos : null,
     };
   });
 
-  console.log("VAI INSERIR:", rows);
+  const idsAtuais = rows.map((r) => r.id);
 
-  const { error: insError } = await supabase
+  const { data: existentes, error: fetchError } = await supabase
     .from("hotspots")
-    .insert(rows);
+    .select("id")
+    .eq("pavimento_id", pavId);
 
-  if (insError) {
-    console.error("Erro ao salvar hotspots:", insError);
-    console.error("Detalhes:", insError.message, insError.details, insError.hint);
+  if (fetchError) {
+    console.error("Erro ao buscar hotspots existentes:", fetchError);
+    return;
+  }
+
+  const idsRemover = (existentes || [])
+    .map((e) => e.id)
+    .filter((id) => !idsAtuais.includes(id));
+
+  if (idsRemover.length > 0) {
+    const { error } = await supabase
+      .from("hotspots")
+      .delete()
+      .in("id", idsRemover);
+    if (error) console.error("Erro ao remover hotspots antigos:", error);
+  }
+
+  if (rows.length === 0) return;
+
+  const { error: upError } = await supabase
+    .from("hotspots")
+    .upsert(rows, { onConflict: "id" });
+
+  if (upError) {
+    console.error("Erro ao salvar hotspots:", upError);
   } else {
-    console.log("Hotspots salvos com sucesso!");
+    console.log("Hotspots salvos com sucesso:", rows.length, "itens");
   }
 }
 
@@ -92,19 +100,7 @@ export async function loadActivities(envId) {
 }
 
 export async function saveActivities(envId, activities) {
-  const { error: delError } = await supabase
-    .from("activities")
-    .delete()
-    .eq("ambiente_id", envId);
-
-  if (delError) {
-    console.error("Erro ao limpar atividades:", delError);
-    return;
-  }
-
-  if (!activities || activities.length === 0) return;
-
-  const rows = activities.map((a) => ({
+  const rows = (activities || []).map((a) => ({
     id: String(a.id),
     ambiente_id: String(envId),
     servico_id: String(a.servicoId),
@@ -118,20 +114,52 @@ export async function saveActivities(envId, activities) {
         : new Date(a.fim).toISOString().slice(0, 10),
   }));
 
-  console.log("VAI INSERIR ACTIVITIES:", rows);
+  console.log("saveActivities called:", envId, rows);
 
-  const { error: insError } = await supabase
+  const idsAtuais = rows.map((r) => r.id);
+
+  // Busca o que já existe pra saber o que remover
+  const { data: existentes, error: fetchError } = await supabase
     .from("activities")
-    .insert(rows);
+    .select("id")
+    .eq("ambiente_id", envId);
 
-  if (insError) {
-    console.error("Erro ao salvar atividades:", insError);
-    console.error("Detalhes:", insError.message, insError.details, insError.hint);
+  if (fetchError) {
+    console.error("Erro ao buscar atividades existentes:", fetchError);
+    return;
+  }
+
+  const idsRemover = (existentes || [])
+    .map((e) => e.id)
+    .filter((id) => !idsAtuais.includes(id));
+
+  if (idsRemover.length > 0) {
+    const { error } = await supabase
+      .from("activities")
+      .delete()
+      .in("id", idsRemover);
+    if (error) console.error("Erro ao remover atividades antigas:", error);
+  }
+
+  if (rows.length === 0) {
+    console.log("Nada pra salvar (lista vazia)");
+    return;
+  }
+
+  const { data, error: upError } = await supabase
+    .from("activities")
+    .upsert(rows, { onConflict: "id" })
+    .select();
+
+  if (upError) {
+    console.error("Erro ao salvar atividades:", upError);
+    console.error("message:", upError.message);
+    console.error("details:", upError.details);
+    console.error("hint:", upError.hint);
+    console.error("code:", upError.code);
   } else {
-    console.log("Atividades salvas com sucesso!");
+    console.log("Atividades salvas com sucesso:", data);
   }
 }
 
-export function clearPavimento() {
-  // mantido por compatibilidade
-}
+export function clearPavimento() {}

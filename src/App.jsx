@@ -19,10 +19,11 @@ function App() {
   const [selectedEnv, setSelectedEnv] = useState(null);
   const [hotspotsVersion, setHotspotsVersion] = useState(0);
   const [pavimentoHotspots, setPavimentoHotspots] = useState([]);
+  const [allEnvIds, setAllEnvIds] = useState([]);
 
   const pavimento = getPavimento(pavimentoId);
 
-  // carrega hotspots do Supabase ao trocar de pavimento
+  // carrega hotspots do pavimento atual (Supabase)
   useEffect(() => {
     let cancelled = false;
     const load = async () => {
@@ -37,13 +38,28 @@ function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pavimento.id, hotspotsVersion]);
 
-  // lista de TODOS os ambientes pra o hook de atividades indexar
-  const allEnvIds = useMemo(() => {
-    return PAVIMENTOS.flatMap((p) => {
-      const list = p.hotspots || [];
-      return list.filter((h) => h.tipo !== "alvenaria").map((h) => h.id);
-    });
-  }, []);
+  // carrega lista de TODOS os ambientes (de todos os pavimentos, do Supabase)
+  // isso é o que faz o useActivities saber o que carregar
+  useEffect(() => {
+    let cancelled = false;
+    const loadAll = async () => {
+      const ids = [];
+      for (const p of PAVIMENTOS) {
+        const stored = await loadHotspots(p.id);
+        const list = stored || p.hotspots || [];
+        list
+          .filter((h) => h.tipo !== "alvenaria")
+          .forEach((h) => ids.push(h.id));
+      }
+      if (cancelled) return;
+      setAllEnvIds(ids);
+    };
+    loadAll();
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hotspotsVersion]);
 
   const activities = useActivities(allEnvIds);
 
