@@ -5,7 +5,8 @@ import Header from "./components/Header";
 import Sidebar from "./components/Sidebar";
 import FloorPlan from "./components/FloorPlan";
 import Detail from "./components/Detail";
-import Timeline from "./components/Timeline";
+import GanttPavimento from "./components/GanttPavimento";
+import PanoramaMensal from "./components/PanoramaMensal";
 import DateNav from "./components/DateNav";
 
 import { START, addDays, fmtFull } from "./data/planning";
@@ -20,6 +21,7 @@ function App() {
   const [hotspotsVersion, setHotspotsVersion] = useState(0);
   const [pavimentoHotspots, setPavimentoHotspots] = useState([]);
   const [allEnvIds, setAllEnvIds] = useState([]);
+  const [envPavMap, setEnvPavMap] = useState({}); // ambienteId -> pavimentoId
 
   const pavimento = getPavimento(pavimentoId);
 
@@ -38,21 +40,25 @@ function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pavimento.id, hotspotsVersion]);
 
-  // carrega lista de TODOS os ambientes (de todos os pavimentos, do Supabase)
-  // isso é o que faz o useActivities saber o que carregar
+  // carrega TODOS os ambientes (de todos os pavimentos) + mapa ambiente -> pavimento
   useEffect(() => {
     let cancelled = false;
     const loadAll = async () => {
       const ids = [];
+      const map = {};
       for (const p of PAVIMENTOS) {
         const stored = await loadHotspots(p.id);
         const list = stored || p.hotspots || [];
         list
           .filter((h) => h.tipo !== "alvenaria")
-          .forEach((h) => ids.push(h.id));
+          .forEach((h) => {
+            ids.push(h.id);
+            map[h.id] = p.id;
+          });
       }
       if (cancelled) return;
       setAllEnvIds(ids);
+      setEnvPavMap(map);
     };
     loadAll();
     return () => {
@@ -67,12 +73,23 @@ function App() {
     ? activities.getByEnv(selectedEnv.id)
     : [];
 
-  const allActivitiesDoPavimento = useMemo(() => {
-    const ids = pavimentoHotspots
-      .filter((h) => h.tipo !== "alvenaria")
-      .map((h) => h.id);
-    return ids.flatMap((id) => activities.getByEnv(id));
-  }, [pavimentoHotspots, activities]);
+  // todas as atividades de todos os pavimentos, já com o pavimentoId
+  const atividadesComPavimento = useMemo(
+    () =>
+      allEnvIds.flatMap((id) =>
+        activities.getByEnv(id).map((a) => ({
+          ...a,
+          pavimentoId: envPavMap[id],
+        }))
+      ),
+    [allEnvIds, envPavMap, activities]
+  );
+
+  // só as atividades do pavimento selecionado (usado no Gantt)
+  const atividadesDoPavimento = useMemo(
+    () => atividadesComPavimento.filter((a) => a.pavimentoId === pavimento.id),
+    [atividadesComPavimento, pavimento.id]
+  );
 
   const handleSelect = useCallback(
     (envId) => {
@@ -131,6 +148,14 @@ function App() {
             </div>
           </div>
 
+          {/* Gantt do pavimento, acima da planta */}
+          <GanttPavimento
+            pavimento={pavimento}
+            date={date}
+            atividades={atividadesDoPavimento}
+            onSelectAmbiente={handleSelect}
+          />
+
           <div className="workspace">
             <FloorPlan
               pavimento={{ ...pavimento, hotspots: pavimentoHotspots }}
@@ -147,20 +172,13 @@ function App() {
               date={date}
               activities={currentActivities}
               onAddActivity={activities.add}
+              onUpdateActivity={activities.update}
               onRemoveActivity={activities.remove}
               onClose={handleCloseEnv}
             />
           </div>
 
-          <Timeline
-            date={date}
-            setDate={setDate}
-            selectedEnvId={selectedEnv?.id || null}
-            selectedEnv={selectedEnv}
-            activitiesByEnv={activities.getByEnv}
-            allActivities={allActivitiesDoPavimento}
-            pavimento={pavimento}
-          />
+          <PanoramaMensal date={date} atividades={atividadesComPavimento} />
         </section>
       </main>
     </div>
