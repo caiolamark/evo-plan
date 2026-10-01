@@ -9,13 +9,26 @@ import GanttPavimento from "./components/GanttPavimento";
 import PanoramaMensal from "./components/PanoramaMensal";
 import DateNav from "./components/DateNav";
 
-import { START, addDays, fmtFull } from "./data/planning";
+import { addDays, fmtFull } from "./data/planning";
 import { PAVIMENTOS, getPavimento } from "./data/pavimentos";
 import { loadHotspots } from "./data/storage";
 import { useActivities } from "./hooks/useActivities";
 
+// "hoje" à meia-noite UTC, no mesmo padrão das datas das atividades
+function hojeUTC() {
+  const t = new Date();
+  return new Date(Date.UTC(t.getFullYear(), t.getMonth(), t.getDate()));
+}
+
+function travar(d, limites) {
+  if (!limites) return d;
+  if (d < limites.min) return limites.min;
+  if (d > limites.max) return limites.max;
+  return d;
+}
+
 function App() {
-  const [date, setDate] = useState(START);
+  const [date, setDate] = useState(hojeUTC);
   const [pavimentoId, setPavimentoId] = useState(PAVIMENTOS[0].id);
   const [selectedEnv, setSelectedEnv] = useState(null);
   const [hotspotsVersion, setHotspotsVersion] = useState(0);
@@ -91,6 +104,30 @@ function App() {
     [atividadesComPavimento, pavimento.id]
   );
 
+  // limites de data: da primeira atividade ao fim da última
+  const limites = useMemo(() => {
+    if (atividadesComPavimento.length === 0) return null;
+    let min = null;
+    let max = null;
+    atividadesComPavimento.forEach((a) => {
+      const ini = new Date(a.inicio);
+      const fim = new Date(a.fim);
+      if (!min || ini < min) min = ini;
+      if (!max || fim > max) max = fim;
+    });
+    return { min, max };
+  }, [atividadesComPavimento]);
+
+  // mantém a data dentro dos limites (inclusive no carregamento inicial)
+  useEffect(() => {
+    if (!limites) return;
+    setDate((d) => travar(d, limites));
+  }, [limites]);
+
+  const handleToday = useCallback(() => {
+    setDate(travar(hojeUTC(), limites));
+  }, [limites]);
+
   const handleSelect = useCallback(
     (envId) => {
       const env = pavimentoHotspots.find((h) => h.id === envId) || null;
@@ -144,6 +181,9 @@ function App() {
                 setDate={setDate}
                 fmtFull={fmtFull}
                 addDays={addDays}
+                minDate={limites?.min}
+                maxDate={limites?.max}
+                onToday={handleToday}
               />
             </div>
           </div>

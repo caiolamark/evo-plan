@@ -12,7 +12,7 @@ const MESES = [
 // evita deslocamento de fuso ("2026-10-01" virando 30/09 no Brasil)
 function parseDia(v) {
   if (v instanceof Date) {
-    return new Date(v.getFullYear(), v.getMonth(), v.getDate());
+    return new Date(v.getUTCFullYear(), v.getUTCMonth(), v.getUTCDate());
   }
   const [y, m, d] = String(v).slice(0, 10).split("-").map(Number);
   return new Date(y, m - 1, d);
