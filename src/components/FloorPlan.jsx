@@ -1,4 +1,4 @@
-// src/components/FloorPlan.jsx
+
 import React, { useRef, useState, useCallback, useEffect } from "react";
 import {
   Compass,
@@ -29,6 +29,7 @@ let nextId = 1;
 function clampCenterGeneric(cx, cy, z, baseW, baseH) {
   const halfW = baseW / z / 2;
   const halfH = baseH / z / 2;
+
   return {
     cx: Math.min(baseW - halfW, Math.max(halfW, cx)),
     cy: Math.min(baseH - halfH, Math.max(halfH, cy)),
@@ -49,6 +50,7 @@ function FloorPlan({
   const ZOOM_MIN = pavimento.zoomInicial ?? 1;
 
   const [zoom, setZoom] = useState(ZOOM_MIN);
+
   const [center, setCenter] = useState(() =>
     clampCenterGeneric(
       pavimento.centerInicial?.cx ?? BASE_W / 2,
@@ -62,6 +64,7 @@ function FloorPlan({
   const wrap = useRef(null);
   const stageRef = useRef(null);
   const svgRef = useRef(null);
+
   const [hover, setHover] = useState(null);
   const [hoverPosition, setHoverPosition] = useState({ x: 0, y: 0 });
 
@@ -79,25 +82,31 @@ function FloorPlan({
 
   const zoomRef = useRef(zoom);
   const centerRef = useRef(center);
+
   useEffect(() => {
     zoomRef.current = zoom;
   }, [zoom]);
+
   useEffect(() => {
     centerRef.current = center;
   }, [center]);
 
-  // ---- carrega hotspots do Supabase ao trocar de pavimento ----
+  // Carrega os ambientes ao trocar de pavimento.
   useEffect(() => {
     let cancelled = false;
+
     const load = async () => {
       const stored = await loadHotspots(pavimento.id);
+
       if (cancelled) return;
+
       const initial = stored || pavimento.hotspots || [];
       setHotspots(initial);
 
       const z = pavimento.zoomInicial ?? 1;
       const rawCx = pavimento.centerInicial?.cx ?? pavimento.baseW / 2;
       const rawCy = pavimento.centerInicial?.cy ?? pavimento.baseH / 2;
+
       const c = clampCenterGeneric(
         rawCx,
         rawCy,
@@ -116,18 +125,22 @@ function FloorPlan({
       setRectPreview(null);
       setPanning(false);
       panStart.current = null;
+
       if (onHotspotsChange) onHotspotsChange();
     };
+
     load();
+
     return () => {
       cancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pavimento.id]);
 
-  // ---- listener nativo de wheel ----
+  // Controle de zoom pela roda do mouse.
   useEffect(() => {
     const el = stageRef.current;
+
     if (!el) return;
 
     function onWheel(e) {
@@ -136,24 +149,39 @@ function FloorPlan({
 
       const oldZoom = zoomRef.current;
       const factor = Math.exp(-e.deltaY * 0.0015);
+
       let newZoom = oldZoom * factor;
 
-      const zmin = Math.max(ZOOM_HARD_MIN, pavimento.zoomInicial ?? 1);
+      const zmin = Math.max(
+        ZOOM_HARD_MIN,
+        pavimento.zoomInicial ?? 1
+      );
+
       newZoom = Math.min(ZOOM_MAX, Math.max(zmin, newZoom));
 
       if (Math.abs(newZoom - oldZoom) < 0.0001) return;
 
       const svg = svgRef.current;
+
+      if (!svg) return;
+
       const pt = svg.createSVGPoint();
       pt.x = e.clientX;
       pt.y = e.clientY;
-      const ctm = svg.getScreenCTM().inverse();
+
+      const screenCTM = svg.getScreenCTM();
+
+      if (!screenCTM) return;
+
+      const ctm = screenCTM.inverse();
       const p = pt.matrixTransform(ctm);
+
       const mx = p.x;
       const my = p.y;
 
       const c = centerRef.current;
       const scale = oldZoom / newZoom;
+
       const newCx = mx + (c.cx - mx) * scale;
       const newCy = my + (c.cy - my) * scale;
 
@@ -170,14 +198,19 @@ function FloorPlan({
     }
 
     el.addEventListener("wheel", onWheel, { passive: false });
+
     return () => el.removeEventListener("wheel", onWheel);
   }, [pavimento.baseW, pavimento.baseH, pavimento.zoomInicial]);
 
-  // ---- persiste hotspots no Supabase (async) ----
+  // Persiste os ambientes.
   async function applyHotspots(updater) {
-    const next = typeof updater === "function" ? updater(hotspots) : updater;
+    const next =
+      typeof updater === "function" ? updater(hotspots) : updater;
+
     setHotspots(next);
+
     await saveHotspots(pavimento.id, next);
+
     if (onHotspotsChange) onHotspotsChange();
   }
 
@@ -185,30 +218,61 @@ function FloorPlan({
   const vbH = BASE_H / zoom;
   const vbX = center.cx - vbW / 2;
   const vbY = center.cy - vbH / 2;
+
   const viewBox = `${vbX} ${vbY} ${vbW} ${vbH}`;
 
   const hoveredEnvironment = hotspots.find((h) => h.id === hover);
+
   const hoveredActivities =
-    hover && activitiesByEnv ? activitiesByEnv(hover) : [];
+    hover && activitiesByEnv ? activitiesByEnv(hover) || [] : [];
+
+  // CORREÇÃO: ordena as atividades pela data de início.
+  // A cópia evita alterar a lista original.
+  const sortedHoveredActivities = [...hoveredActivities].sort(
+    (a, b) => {
+      const dateA = new Date(a.inicio).getTime();
+      const dateB = new Date(b.inicio).getTime();
+
+      return (
+        (Number.isNaN(dateA) ? Infinity : dateA) -
+        (Number.isNaN(dateB) ? Infinity : dateB)
+      );
+    }
+  );
 
   function handleMouseEnter(event, hotspot) {
     if (editMode || panning) return;
+
     setHover(hotspot.id);
+
     const environmentRect = event.currentTarget.getBoundingClientRect();
     const wrapRect = wrap.current.getBoundingClientRect();
+
     setHoverPosition({
       x: environmentRect.right - wrapRect.left + 12,
-      y: environmentRect.top - wrapRect.top + environmentRect.height / 2,
+      y:
+        environmentRect.top -
+        wrapRect.top +
+        environmentRect.height / 2,
     });
   }
 
   const svgPoint = useCallback((evt) => {
     const svg = svgRef.current;
+
+    if (!svg) return [0, 0];
+
     const pt = svg.createSVGPoint();
     pt.x = evt.clientX;
     pt.y = evt.clientY;
-    const ctm = svg.getScreenCTM().inverse();
+
+    const screenCTM = svg.getScreenCTM();
+
+    if (!screenCTM) return [0, 0];
+
+    const ctm = screenCTM.inverse();
     const p = pt.matrixTransform(ctm);
+
     return [p.x, p.y];
   }, []);
 
@@ -219,8 +283,11 @@ function FloorPlan({
   function zoomBy(factor) {
     const oldZoom = zoom;
     let newZoom = oldZoom * factor;
+
     newZoom = Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, newZoom));
+
     if (Math.abs(newZoom - oldZoom) < 0.0001) return;
+
     setZoom(newZoom);
     setCenter((c) => clampCenter(c.cx, c.cy, newZoom));
   }
@@ -229,6 +296,7 @@ function FloorPlan({
     const z = pavimento.zoomInicial ?? 1;
     const rawCx = pavimento.centerInicial?.cx ?? BASE_W / 2;
     const rawCy = pavimento.centerInicial?.cy ?? BASE_H / 2;
+
     setZoom(z);
     setCenter(clampCenter(rawCx, rawCy, z));
   }
@@ -236,13 +304,18 @@ function FloorPlan({
   function handlePanStart(evt) {
     const isMiddle = evt.button === 1;
     const isLeft = evt.button === 0;
-    const canPanLeft = isLeft && !(editMode && drawMode !== "select");
+
+    const canPanLeft =
+      isLeft && !(editMode && drawMode !== "select");
+
     if (!isMiddle && !canPanLeft) return;
 
     evt.preventDefault();
     evt.stopPropagation();
+
     setPanning(true);
     setHover(null);
+
     panStart.current = {
       clientX: evt.clientX,
       clientY: evt.clientY,
@@ -253,22 +326,33 @@ function FloorPlan({
 
   function handlePanMove(evt) {
     if (!panning || !panStart.current) return;
+
     const svg = svgRef.current;
+
+    if (!svg) return;
+
     const rect = svg.getBoundingClientRect();
+
     const dxSvg =
-      ((evt.clientX - panStart.current.clientX) / rect.width) * (BASE_W / zoom);
+      ((evt.clientX - panStart.current.clientX) / rect.width) *
+      (BASE_W / zoom);
+
     const dySvg =
-      ((evt.clientY - panStart.current.clientY) / rect.height) * (BASE_H / zoom);
+      ((evt.clientY - panStart.current.clientY) / rect.height) *
+      (BASE_H / zoom);
+
     const { cx, cy } = clampCenter(
       panStart.current.cx - dxSvg,
       panStart.current.cy - dySvg,
       zoom
     );
+
     setCenter({ cx, cy });
   }
 
   function handlePanEnd() {
     if (!panning) return;
+
     setPanning(false);
     panStart.current = null;
   }
@@ -294,15 +378,19 @@ function FloorPlan({
   function handleSvgClick(evt) {
     if (panning) return;
     if (!editMode) return;
+
     if (drawMode === "linha" || drawMode === "poligono") {
       const p = svgPoint(evt);
+
       setCurrentPoints((pts) => [...pts, p]);
     }
   }
 
   function handleSvgDoubleClick() {
     if (!editMode) return;
+
     const minPts = drawMode === "poligono" ? 3 : 2;
+
     if (
       (drawMode === "linha" || drawMode === "poligono") &&
       currentPoints.length >= minPts
@@ -313,8 +401,11 @@ function FloorPlan({
 
   function handleSvgMouseDown(evt) {
     handlePanStart(evt);
+
     if (panning) return;
+
     if (!editMode || drawMode !== "retangulo") return;
+
     setRectStart(svgPoint(evt));
   }
 
@@ -323,14 +414,19 @@ function FloorPlan({
       handlePanMove(evt);
       return;
     }
+
     if (!editMode) return;
+
     const p = svgPoint(evt);
+
     setMousePos(p);
+
     if (drawMode === "retangulo" && rectStart) {
       const x = Math.min(rectStart[0], p[0]);
       const y = Math.min(rectStart[1], p[1]);
       const w = Math.abs(p[0] - rectStart[0]);
       const h = Math.abs(p[1] - rectStart[1]);
+
       setRectPreview({ x, y, w, h });
     }
   }
@@ -340,10 +436,19 @@ function FloorPlan({
       handlePanEnd();
       return;
     }
-    if (!editMode || drawMode !== "retangulo" || !rectStart || !rectPreview)
+
+    if (
+      !editMode ||
+      drawMode !== "retangulo" ||
+      !rectStart ||
+      !rectPreview
+    ) {
       return;
+    }
+
     if (rectPreview.w > 4 && rectPreview.h > 4) {
       const id = `${pavimento.id}-area-${nextId++}-${Date.now()}`;
+
       applyHotspots((hs) => [
         ...hs,
         {
@@ -356,15 +461,19 @@ function FloorPlan({
         },
       ]);
     }
+
     setRectStart(null);
     setRectPreview(null);
   }
 
   function handleKeyDown(evt) {
     if (!editMode) return;
+
     if (evt.key === "Escape") resetDrawing();
+
     if (evt.key === "Enter") {
       const minPts = drawMode === "poligono" ? 3 : 2;
+
       if (
         (drawMode === "linha" || drawMode === "poligono") &&
         currentPoints.length >= minPts
@@ -377,12 +486,15 @@ function FloorPlan({
   function finalizarPontos() {
     const prefix = drawMode === "linha" ? "alvenaria" : "area";
     const id = `${pavimento.id}-${prefix}-${nextId++}-${Date.now()}`;
+
     if (drawMode === "linha") {
       applyHotspots((hs) => [
         ...hs,
         {
           id,
-          nome: `Alvenaria ${hs.filter((h) => h.tipo === "alvenaria").length + 1}`,
+          nome: `Alvenaria ${
+            hs.filter((h) => h.tipo === "alvenaria").length + 1
+          }`,
           tipo: "alvenaria",
           pontos: currentPoints,
         },
@@ -398,6 +510,7 @@ function FloorPlan({
         },
       ]);
     }
+
     resetDrawing();
   }
 
@@ -416,8 +529,10 @@ function FloorPlan({
       !window.confirm(
         `Remover TODOS os ambientes do pavimento ${pavimento.nome}?`
       )
-    )
+    ) {
       return;
+    }
+
     applyHotspots([]);
   }
 
@@ -426,19 +541,25 @@ function FloorPlan({
     const blob = new Blob([data], { type: "application/json" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
+
     a.href = url;
     a.download = `hotspots-${pavimento.id}.json`;
     a.click();
+
     URL.revokeObjectURL(url);
   }
 
   function renderHotspot(hotspot) {
-    const active = hover === hotspot.id || selectedEnvId === hotspot.id;
+    const active =
+      hover === hotspot.id || selectedEnvId === hotspot.id;
+
     const isAlvenaria = hotspot.tipo === "alvenaria";
     const isPoligono = hotspot.tipo === "poligono";
+
     const cor = isAlvenaria ? COR_ALVENARIA : COR_AREA;
 
     let shape;
+
     if (isAlvenaria) {
       shape = (
         <polyline
@@ -468,7 +589,11 @@ function FloorPlan({
           width={hotspot.w}
           height={hotspot.h}
           rx="6"
-          fill={active ? "rgba(95,208,138,.30)" : "rgba(95,208,138,.08)"}
+          fill={
+            active
+              ? "rgba(95,208,138,.30)"
+              : "rgba(95,208,138,.08)"
+          }
           stroke="#5fd08a"
           strokeWidth="4"
         />
@@ -481,10 +606,17 @@ function FloorPlan({
         onMouseEnter={(event) => handleMouseEnter(event, hotspot)}
         onMouseLeave={() => setHover(null)}
         onClick={() =>
-          !editMode && !panning && onSelect && onSelect(hotspot.id)
+          !editMode &&
+          !panning &&
+          onSelect &&
+          onSelect(hotspot.id)
         }
         style={{
-          cursor: editMode ? "default" : panning ? "grabbing" : "pointer",
+          cursor: editMode
+            ? "default"
+            : panning
+            ? "grabbing"
+            : "pointer",
         }}
       >
         {shape}
@@ -507,13 +639,18 @@ function FloorPlan({
         />
       );
     }
+
     if (
       (drawMode === "linha" || drawMode === "poligono") &&
       currentPoints.length > 0
     ) {
-      const pts = mousePos ? [...currentPoints, mousePos] : currentPoints;
+      const pts = mousePos
+        ? [...currentPoints, mousePos]
+        : currentPoints;
+
       const cor = drawMode === "linha" ? COR_ALVENARIA : COR_AREA;
       const Tag = drawMode === "poligono" ? "polygon" : "polyline";
+
       return (
         <>
           <Tag
@@ -524,6 +661,7 @@ function FloorPlan({
             strokeLinecap="round"
             strokeLinejoin="round"
           />
+
           {currentPoints.map((p, i) => (
             <circle
               key={i}
@@ -536,6 +674,7 @@ function FloorPlan({
         </>
       );
     }
+
     return null;
   }
 
@@ -577,6 +716,7 @@ function FloorPlan({
             />
 
             {hotspots.map(renderHotspot)}
+
             {editMode && renderDrawingPreview()}
           </svg>
         </div>
@@ -590,9 +730,11 @@ function FloorPlan({
         <button onClick={() => zoomBy(1.25)} title="Zoom in">
           <Plus size={14} />
         </button>
+
         <button onClick={() => zoomBy(1 / 1.25)} title="Zoom out">
           <Minus size={14} />
         </button>
+
         <button onClick={resetZoom} title="Resetar enquadramento">
           <Maximize2 size={13} />
         </button>
@@ -601,7 +743,9 @@ function FloorPlan({
       <button
         onClick={handleToggleEdit}
         title={
-          editMode ? "Sair do editor de áreas" : "Editar áreas / alvenaria"
+          editMode
+            ? "Sair do editor de áreas"
+            : "Editar áreas / alvenaria"
         }
         style={{
           position: "absolute",
@@ -613,8 +757,12 @@ function FloorPlan({
           gap: 6,
           padding: "7px 12px",
           borderRadius: 8,
-          border: `1px solid ${editMode ? "#3A86D1" : "#1c2f3d"}`,
-          background: editMode ? "rgba(58,134,209,.18)" : "#101F2C",
+          border: `1px solid ${
+            editMode ? "#3A86D1" : "#1c2f3d"
+          }`,
+          background: editMode
+            ? "rgba(58,134,209,.18)"
+            : "#101F2C",
           color: editMode ? "#bcdcff" : "#E6EEF3",
           fontSize: 12.5,
           cursor: "pointer",
@@ -645,16 +793,24 @@ function FloorPlan({
           }}
         >
           <div style={{ fontSize: 11, color: "#7c93a3" }}>
-            Pavimento: <b style={{ color: "#5fd08a" }}>{pavimento.nome}</b>
+            Pavimento:{" "}
+            <b style={{ color: "#5fd08a" }}>{pavimento.nome}</b>
           </div>
 
-          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              gap: 6,
+            }}
+          >
             <FerramentaBtn
               ativo={drawMode === "select"}
               onClick={() => handleSetDrawMode("select")}
               icon={<MousePointer2 size={14} />}
               label="Selecionar / mover"
             />
+
             <FerramentaBtn
               ativo={drawMode === "linha"}
               onClick={() => handleSetDrawMode("linha")}
@@ -662,6 +818,7 @@ function FloorPlan({
               label="Alvenaria (linha)"
               cor={COR_ALVENARIA}
             />
+
             <FerramentaBtn
               ativo={drawMode === "retangulo"}
               onClick={() => handleSetDrawMode("retangulo")}
@@ -669,6 +826,7 @@ function FloorPlan({
               label="Ambiente (retângulo)"
               cor={COR_AREA}
             />
+
             <FerramentaBtn
               ativo={drawMode === "poligono"}
               onClick={() => handleSetDrawMode("poligono")}
@@ -688,10 +846,13 @@ function FloorPlan({
           >
             {drawMode === "linha" &&
               "Clique ponto a ponto na parede. Duplo clique ou Enter finaliza."}
+
             {drawMode === "poligono" &&
               "Clique ponto a ponto contornando o ambiente (mín. 3). Duplo clique ou Enter fecha."}
+
             {drawMode === "retangulo" &&
               "Clique e arraste para desenhar o ambiente."}
+
             {drawMode === "select" &&
               "Arraste com o mouse para mover a planta."}
           </div>
@@ -728,7 +889,13 @@ function FloorPlan({
                   padding: 7,
                 }}
               >
-                <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 6,
+                  }}
+                >
                   <input
                     type="text"
                     value={h.nome}
@@ -744,6 +911,7 @@ function FloorPlan({
                       fontSize: 12,
                     }}
                   />
+
                   <button
                     onClick={() => remover(h.id)}
                     style={{
@@ -756,6 +924,7 @@ function FloorPlan({
                     <Trash2 size={13} />
                   </button>
                 </div>
+
                 <div
                   style={{
                     color: "#7f95a3",
@@ -786,6 +955,7 @@ function FloorPlan({
             >
               Limpar tudo
             </button>
+
             <button
               onClick={exportarJson}
               style={{
@@ -818,14 +988,20 @@ function FloorPlan({
         const wrapH = wrap.current?.clientHeight || 0;
 
         let left = hoverPosition.x;
+
         if (wrapW && left + CARD_W + MARGIN > wrapW) {
           left = Math.max(MARGIN, wrapW - CARD_W - MARGIN);
         }
 
         let top = hoverPosition.y;
+
         if (wrapH) {
           const half = CARD_H / 2;
-          top = Math.max(half + MARGIN, Math.min(wrapH - half - MARGIN, top));
+
+          top = Math.max(
+            half + MARGIN,
+            Math.min(wrapH - half - MARGIN, top)
+          );
         }
 
         return (
@@ -834,7 +1010,9 @@ function FloorPlan({
             style={{
               left: `${left}px`,
               top: `${top}px`,
-              maxHeight: wrapH ? `${wrapH - MARGIN * 2}px` : undefined,
+              maxHeight: wrapH
+                ? `${wrapH - MARGIN * 2}px`
+                : undefined,
               overflowY: "auto",
             }}
           >
@@ -843,13 +1021,16 @@ function FloorPlan({
               <small>{pavimento.subtitulo}</small>
             </div>
 
-            {hoveredActivities.length > 0 ? (
+            {sortedHoveredActivities.length > 0 ? (
               <div className="hover-services">
-                {hoveredActivities.map((item) => (
+                {sortedHoveredActivities.map((item) => (
                   <div className="hover-service" key={item.id}>
                     <span className="hover-service-name">
-                      {SERVICE[item.servicoId]?.nome || item.servicoId}
+                      {SERVICE[item.servicoId]?.nome ||
+                        item.servicoId ||
+                        "Serviço não identificado"}
                     </span>
+
                     <span className="hover-dates">
                       {fmtFull(new Date(item.inicio))} →{" "}
                       {fmtFull(new Date(item.fim))}
@@ -858,7 +1039,9 @@ function FloorPlan({
                 ))}
               </div>
             ) : (
-              <div className="hover-empty">Nenhuma atividade cadastrada.</div>
+              <div className="hover-empty">
+                Nenhuma atividade cadastrada.
+              </div>
             )}
           </div>
         );
@@ -896,6 +1079,7 @@ function FerramentaBtn({ ativo, onClick, icon, label, cor }) {
           }}
         />
       )}
+
       {icon}
       {label}
     </button>
