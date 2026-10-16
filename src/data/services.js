@@ -6,6 +6,7 @@ export const SERVICES = [
   ["revestimento_gesso", "Revestimento de Gesso"],
   ["forro_gesso", "Forro de Gesso"],
   ["impermeabilizacao", "Impermeabilização"],
+  ["piso_polido", "Piso Polido"],
   ["contrapiso", "Contrapiso"],
   ["revestimento_piso", "Revestimento de Piso"],
   ["revestimento_parede", "Revestimento de Parede"],

@@ -20,6 +20,7 @@ export const SERVICE_COLORS = {
   revestimento_gesso: "#A1A1AA",
   forro_gesso: "#71717A",
   impermeabilizacao: "#06B6D4",
+  piso_polido: "#06B7",
   contrapiso: "#84CC16",
   revestimento_piso: "#F97316",
   revestimento_parede: "#EA580C",

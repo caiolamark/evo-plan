@@ -1,4 +1,5 @@
 // src/data/planning.js
+
 export const iso = (y, m, d) => new Date(Date.UTC(y, m - 1, d));
 
 export const addDays = (date, number) => {
@@ -19,7 +20,7 @@ export const fmtFull = (date) =>
 
 export const days = (a, b) => Math.round((b - a) / 86400000) + 1;
 
-// exports fantasma pra não quebrar imports antigos
+// Exports fantasma para não quebrar imports antigos
 export const BASE = [];
 export const OFFSETS = {};
 export const DELAYS = new Set();
@@ -28,42 +29,46 @@ export const PLAN = [];
 export const START = iso(2026, 10, 1);
 export const END = iso(2026, 12, 31);
 
+// Serviços em ordem alfabética,
+// com os serviços de instalações agrupados no final.
 export const SERVICES = [
   ["alvenaria", "Alvenaria Periférica"],
   ["chapisco", "Chapisco"],
-  ["emboco", "Emboço"],
+  ["contrapiso", "Contrapiso"],
+  ["esquadrias", "Esquadrias"],
+  ["forro_gesso", "Forro de Gesso"],
+  ["granitos", "Granitos"],
+  ["impermeabilizacao", "Impermeabilização"],
+  ["limpeza", "Limpeza"],
+  ["loucas", "Louças"],
+  ["metalurgia", "Metalurgia"],
+  ["metais", "Metais"],
+  ["pintura", "Pintura"],
+  ["piso_polido", "Piso Polido"],
+  ["portas_rodapes", "Portas e Rodapés"],
+  ["premoldados", "Pré-moldados"],
   ["reboco", "Reboco"],
   ["revestimento_gesso", "Revestimento de Gesso"],
-  ["forro_gesso", "Forro de Gesso"],
-  ["impermeabilizacao", "Impermeabilização"],
-  ["contrapiso", "Contrapiso"],
-  ["revestimento_piso", "Revestimento de Piso"],
   ["revestimento_parede", "Revestimento de Parede"],
-  ["granitos", "Granitos"],
-  ["premoldados", "Pré-moldados"],
-  ["pintura", "Pintura"],
-  ["portas_rodapes", "Portas e Rodapés"],
-  ["esquadrias", "Esquadrias"],
-  ["loucas", "Louças"],
-  ["metais", "Metais"],
-  ["limpeza", "Limpeza"],
-  ["metalurgia", "Metalurgia"],
-  ["hidraulica", "Instalações Hidráulicas"],
+  ["revestimento_piso", "Revestimento de Piso"],
+
+  // INSTALAÇÕES — agrupadas no final
   ["agua_mineral", "Instalações de Água Mineral"],
-  ["irrigacao", "Irrigação"],
-  ["tubulacao_eletrica_alvenaria", "Tubulação Elétrica e Alvenaria"],
-  ["fiacao", "Fiação"],
-  ["prumadas_fiacao", "Prumadas e Fiação"],
+  ["aterramento", "Instalações de Aterramento"],
+  ["cftv", "Instalações CFTV"],
+  ["fiacao", "Instalações - Fiação"],
+  ["frigorigenas", "Instalações Frigorígenas"],
+  ["gas", "Instalações de Gás"],
+  ["hidraulica", "Instalações Hidráulicas"],
   ["instalacoes_vedacoes_internas", "Instalações em Vedações Internas"],
+  ["irrigacao", "Irrigação"],
+  ["prumadas_fiacao", "Instalações - Prumadas e Fiação"],
+  ["prumadas_incendio", "Prumadas e Ramais de Incêndio"],
+  ["quadros_fechamentos", "Quadros e Fechamentos"],
   ["telefonia_tv", "Instalações de Telefonia e TV"],
   ["tomadas_disjuntores", "Instalação de Tomadas e Disjuntores"],
-  ["cftv", "CFTV"],
-  ["aterramento", "Instalações de Aterramento"],
+  ["tubulacao_eletrica_alvenaria", "Tubulação Elétrica e Alvenaria"],
   ["iluminacao", "Iluminação"],
-  ["quadros_fechamentos", "Quadros e Fechamentos"],
-  ["prumadas_incendio", "Prumadas e Ramais de Incêndio"],
-  ["gas", "Instalações de Gás"],
-  ["frigorigenas", "Instalações Frigorígenas"],
 ].map(([id, nome]) => ({ id, nome }));
 
 export const SERVICE = Object.fromEntries(
@@ -78,6 +83,7 @@ export const SERVICE_COLORS = {
   revestimento_gesso: "#A1A1AA",
   forro_gesso: "#71717A",
   impermeabilizacao: "#06B6D4",
+  piso_polido: "#06BC45",
   contrapiso: "#84CC16",
   revestimento_piso: "#F97316",
   revestimento_parede: "#EA580C",
@@ -109,10 +115,22 @@ export const SERVICE_COLORS = {
 };
 
 export const STATUS = {
-  andamento: { label: "Em andamento", color: "#22C55E" },
-  concluido: { label: "Concluído", color: "#3B82F6" },
-  previsto: { label: "Em breve", color: "#EAB308" },
-  atrasado: { label: "Atrasado", color: "#EF4444" },
+  andamento: {
+    label: "Em andamento",
+    color: "#22C55E",
+  },
+  concluido: {
+    label: "Concluído",
+    color: "#3B82F6",
+  },
+  previsto: {
+    label: "Em breve",
+    color: "#EAB308",
+  },
+  atrasado: {
+    label: "Atrasado",
+    color: "#EF4444",
+  },
 };
 
 export const COLORS = {
