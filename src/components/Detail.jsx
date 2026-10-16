@@ -1,4 +1,5 @@
 // src/components/Detail.jsx
+
 import React, { useState } from "react";
 import { Building2, X, Plus, Trash2, Pencil, Check } from "lucide-react";
 
@@ -22,14 +23,17 @@ function toInputValue(dateLike) {
   const yyyy = d.getUTCFullYear();
   const mm = String(d.getUTCMonth() + 1).padStart(2, "0");
   const dd = String(d.getUTCDate()).padStart(2, "0");
+
   return `${yyyy}-${mm}-${dd}`;
 }
 
 function statusOf(item, date) {
   const ini = new Date(item.inicio);
   const fim = new Date(item.fim);
+
   if (date > fim) return "concluido";
   if (date < ini) return "previsto";
+
   return "andamento";
 }
 
@@ -53,6 +57,21 @@ const iconBtn = {
   padding: 2,
 };
 
+// Retorna um nome seguro mesmo se o ID do serviço não existir.
+function getServiceName(servicoId) {
+  return (
+    SERVICE[servicoId]?.nome ||
+    SERVICES.find((service) => service.id === servicoId)?.nome ||
+    servicoId ||
+    "Serviço não identificado"
+  );
+}
+
+// Retorna uma cor padrão caso o serviço não tenha cor cadastrada.
+function getServiceColor(servicoId) {
+  return SERVICE_COLORS[servicoId] || "#7C93A3";
+}
+
 function Detail({
   env,
   pavimento,
@@ -65,13 +84,13 @@ function Detail({
 }) {
   const todayStr = toInputValue(date);
 
-  // formulário de cadastro
-  const [servicoId, setServicoId] = useState(SERVICES[0].id);
+  // Formulário de cadastro
+  const [servicoId, setServicoId] = useState(SERVICES[0]?.id || "");
   const [inicio, setInicio] = useState(todayStr);
   const [fim, setFim] = useState(todayStr);
   const [erro, setErro] = useState("");
 
-  // edição de uma atividade existente
+  // Edição de uma atividade existente
   const [editingId, setEditingId] = useState(null);
   const [editIni, setEditIni] = useState("");
   const [editFim, setEditFim] = useState("");
@@ -94,21 +113,31 @@ function Detail({
 
   function handleAdd() {
     setErro("");
+
     if (!servicoId) {
       setErro("Escolha um serviço.");
       return;
     }
+
     if (!inicio || !fim) {
       setErro("Preencha as datas.");
       return;
     }
+
     const ini = toISODate(inicio);
     const f = toISODate(fim);
+
     if (f < ini) {
       setErro("A data final precisa ser depois da inicial.");
       return;
     }
-    onAddActivity(env.id, { servicoId, inicio: ini, fim: f });
+
+    onAddActivity(env.id, {
+      servicoId,
+      inicio: ini,
+      fim: f,
+    });
+
     setInicio(todayStr);
     setFim(todayStr);
   }
@@ -130,19 +159,27 @@ function Detail({
       setEditErro("Preencha as datas.");
       return;
     }
+
     const ini = toISODate(editIni);
     const f = toISODate(editFim);
+
     if (f < ini) {
       setEditErro("A data final precisa ser depois da inicial.");
       return;
     }
-    onUpdateActivity(env.id, item.id, { inicio: ini, fim: f });
+
+    onUpdateActivity(env.id, item.id, {
+      inicio: ini,
+      fim: f,
+    });
+
     setEditingId(null);
     setEditErro("");
   }
 
   return (
     <div className="details">
+      {/* Cabeçalho */}
       <div className="detailhead">
         <div>
           <small>AMBIENTE SELECIONADO</small>
@@ -155,7 +192,7 @@ function Detail({
         </button>
       </div>
 
-      {/* ---------- FORM DE CADASTRO ---------- */}
+      {/* Formulário de cadastro */}
       <div
         style={{
           margin: 13,
@@ -168,12 +205,19 @@ function Detail({
           gap: 8,
         }}
       >
-        <small style={{ color: "#5fd08a", fontSize: 10, fontWeight: 700 }}>
+        <small
+          style={{
+            color: "#5fd08a",
+            fontSize: 10,
+            fontWeight: 700,
+          }}
+        >
           ➕ ADICIONAR ATIVIDADE
         </small>
 
         <label style={{ fontSize: 11, color: "#cbd8df" }}>
           Serviço
+
           <select
             value={servicoId}
             onChange={(e) => setServicoId(e.target.value)}
@@ -188,8 +232,15 @@ function Detail({
         </label>
 
         <div style={{ display: "flex", gap: 8 }}>
-          <label style={{ flex: 1, fontSize: 11, color: "#cbd8df" }}>
+          <label
+            style={{
+              flex: 1,
+              fontSize: 11,
+              color: "#cbd8df",
+            }}
+          >
             Início
+
             <input
               type="date"
               value={inicio}
@@ -197,8 +248,16 @@ function Detail({
               style={inputStyle}
             />
           </label>
-          <label style={{ flex: 1, fontSize: 11, color: "#cbd8df" }}>
+
+          <label
+            style={{
+              flex: 1,
+              fontSize: 11,
+              color: "#cbd8df",
+            }}
+          >
             Fim
+
             <input
               type="date"
               value={fim}
@@ -208,7 +267,11 @@ function Detail({
           </label>
         </div>
 
-        {erro && <div style={{ color: "#ef4444", fontSize: 11 }}>{erro}</div>}
+        {erro && (
+          <div style={{ color: "#ef4444", fontSize: 11 }}>
+            {erro}
+          </div>
+        )}
 
         <button
           onClick={handleAdd}
@@ -231,7 +294,7 @@ function Detail({
         </button>
       </div>
 
-      {/* ---------- LISTA ---------- */}
+      {/* Lista de atividades */}
       <div className="service-list">
         {items.length === 0 && (
           <div
@@ -248,9 +311,12 @@ function Detail({
 
         {items
           .slice()
-          .sort((a, b) => new Date(a.inicio) - new Date(b.inicio))
+          .sort(
+            (a, b) =>
+              new Date(a.inicio) - new Date(b.inicio)
+          )
           .map((item) => {
-            // ----- linha em modo edição -----
+            // Linha em modo de edição
             if (editingId === item.id) {
               return (
                 <div
@@ -267,19 +333,38 @@ function Detail({
                     padding: 10,
                   }}
                 >
-                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <div
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 8,
+                    }}
+                  >
                     <span
                       className="dot"
-                      style={{ background: SERVICE_COLORS[item.servicoId] }}
+                      style={{
+                        background: getServiceColor(item.servicoId),
+                      }}
                     />
-                    <span className="service-name" style={{ fontWeight: 600 }}>
-                      {SERVICE[item.servicoId].nome}
+
+                    <span
+                      className="service-name"
+                      style={{ fontWeight: 600 }}
+                    >
+                      {getServiceName(item.servicoId)}
                     </span>
                   </div>
 
                   <div style={{ display: "flex", gap: 8 }}>
-                    <label style={{ flex: 1, fontSize: 11, color: "#cbd8df" }}>
+                    <label
+                      style={{
+                        flex: 1,
+                        fontSize: 11,
+                        color: "#cbd8df",
+                      }}
+                    >
                       Início
+
                       <input
                         type="date"
                         value={editIni}
@@ -287,8 +372,16 @@ function Detail({
                         style={inputStyle}
                       />
                     </label>
-                    <label style={{ flex: 1, fontSize: 11, color: "#cbd8df" }}>
+
+                    <label
+                      style={{
+                        flex: 1,
+                        fontSize: 11,
+                        color: "#cbd8df",
+                      }}
+                    >
                       Fim
+
                       <input
                         type="date"
                         value={editFim}
@@ -299,7 +392,12 @@ function Detail({
                   </div>
 
                   {editErro && (
-                    <div style={{ color: "#ef4444", fontSize: 11 }}>
+                    <div
+                      style={{
+                        color: "#ef4444",
+                        fontSize: 11,
+                      }}
+                    >
                       {editErro}
                     </div>
                   )}
@@ -325,6 +423,7 @@ function Detail({
                     >
                       <Check size={13} /> Salvar
                     </button>
+
                     <button
                       onClick={cancelEdit}
                       style={{
@@ -345,27 +444,35 @@ function Detail({
               );
             }
 
-            // ----- linha normal -----
+            // Linha normal
             const status = statusOf(item, date);
+
             return (
               <div
                 key={item.id}
                 className="service-row"
                 style={{
                   display: "grid",
-                  gridTemplateColumns: "9px 1fr 38px 38px auto auto auto",
+                  gridTemplateColumns:
+                    "9px 1fr 38px 38px auto auto auto",
                 }}
               >
                 <span
                   className="dot"
-                  style={{ background: SERVICE_COLORS[item.servicoId] }}
+                  style={{
+                    background: getServiceColor(item.servicoId),
+                  }}
                 />
+
                 <span className="service-name">
-                  {SERVICE[item.servicoId].nome}
+                  {getServiceName(item.servicoId)}
                 </span>
+
                 <span>{fmt(new Date(item.inicio))}</span>
                 <span>{fmt(new Date(item.fim))}</span>
+
                 <Badge status={status} STATUS={STATUS} />
+
                 <button
                   onClick={() => startEdit(item)}
                   title="Editar datas"
@@ -373,6 +480,7 @@ function Detail({
                 >
                   <Pencil size={13} />
                 </button>
+
                 <button
                   onClick={() => onRemoveActivity(env.id, item.id)}
                   title="Remover"

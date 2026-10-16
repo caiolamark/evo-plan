@@ -33,7 +33,6 @@ export const END = iso(2026, 12, 31);
 // com os serviços de instalações agrupados no final.
 export const SERVICES = [
   ["alvenaria", "Alvenaria Periférica"],
-  ["chapisco", "Chapisco"],
   ["contrapiso", "Contrapiso"],
   ["esquadrias", "Esquadrias"],
   ["forro_gesso", "Forro de Gesso"],
@@ -41,16 +40,17 @@ export const SERVICES = [
   ["impermeabilizacao", "Impermeabilização"],
   ["limpeza", "Limpeza"],
   ["loucas", "Louças"],
+  ["massa_interna", "Massa Interna"],
   ["metalurgia", "Metalurgia"],
   ["metais", "Metais"],
+  ["pintura_das_colmeiras", "Pintura das Colmeias"],
   ["pintura", "Pintura"],
   ["piso_polido", "Piso Polido"],
   ["portas_rodapes", "Portas e Rodapés"],
   ["premoldados", "Pré-moldados"],
-  ["reboco", "Reboco"],
   ["revestimento_gesso", "Revestimento de Gesso"],
-  ["revestimento_parede", "Revestimento de Parede"],
-  ["revestimento_piso", "Revestimento de Piso"],
+  ["revestimento_piso_e_parede", "Revestimento de Piso e Parede"],
+
 
   // INSTALAÇÕES — agrupadas no final
   ["agua_mineral", "Instalações de Água Mineral"],
@@ -77,19 +77,17 @@ export const SERVICE = Object.fromEntries(
 
 export const SERVICE_COLORS = {
   alvenaria: "#3B82F6",
-  chapisco: "#22C55E",
-  emboco: "#EAB308",
-  reboco: "#F59E0B",
+  massa_interna: "#22C55E",
   revestimento_gesso: "#A1A1AA",
   forro_gesso: "#71717A",
   impermeabilizacao: "#06B6D4",
   piso_polido: "#06BC45",
   contrapiso: "#84CC16",
-  revestimento_piso: "#F97316",
-  revestimento_parede: "#EA580C",
+  revestimento_piso_e_parede: "#F97316",
   granitos: "#78716C",
   premoldados: "#A8A29E",
-  pintura: "#C084FC",
+  pintura_das_colmeias: "#C084FC",
+  pintura: "#C010FC",
   portas_rodapes: "#D97706",
   esquadrias: "#FB7185",
   loucas: "#E0F2FE",
