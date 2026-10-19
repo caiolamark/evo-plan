@@ -5,12 +5,8 @@ function Sidebar() {
   return (
     <aside className="sidebar">
       <div className="brand">
-        <span className="logo">E</span>
-
-        <div>
-          <strong>EVO PLAN</strong>
-          <small>ENGENHARIA VISUAL DE OBRAS</small>
-        </div>
+        {/* Apenas a imagem da logo */}
+        <img src="/assents/logo.png" alt="EVO Plan Logo" className="brand-logo-img" />
       </div>
 
       <button className="nav active">

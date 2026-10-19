@@ -47,7 +47,9 @@ button:focus-visible {
   background: #07111a;
 }
 
-/* SIDEBAR */
+/* =========================================
+   SIDEBAR & IDENTIDADE VISUAL (APENAS LOGO)
+   ========================================= */
 
 .sidebar {
   width: 240px;
@@ -59,13 +61,27 @@ button:focus-visible {
   border-right: 1px solid #1c3040;
 }
 
+/* Bloco da Logo */
 .brand {
   display: flex;
   align-items: center;
-  gap: 11px;
-  padding: 28px 22px 24px;
+  justify-content: center;
+  padding: 35px 20px 25px; 
+  border-bottom: 1px solid rgba(28, 48, 64, 0.4); 
+  margin-bottom: 15px;
 }
 
+/* Imagem logo.png */
+.brand-logo-img {
+  width: 120px; /* Tamanho de destaque */
+  max-width: 100%;
+  height: auto;
+  object-fit: contain;
+  /* Caso a logo fique muito apagada no fundo escuro, descomente a linha abaixo: */
+  /* filter: drop-shadow(0px 0px 12px rgba(95, 208, 138, 0.15)); */
+}
+
+/* Ícones e mini logo (rodapé) */
 .logo,
 .mini {
   display: grid;
@@ -76,24 +92,13 @@ button:focus-visible {
   border-radius: 7px;
 }
 
-.logo {
-  width: 36px;
-  height: 36px;
+.mini {
+  width: 28px;
+  height: 28px;
+  margin: 14px auto 0;
 }
 
-.brand strong {
-  display: block;
-  font-size: 16px;
-}
-
-.brand small {
-  display: block;
-  margin-top: 5px;
-  color: #4e6577;
-  font-size: 9px;
-  letter-spacing: 0.12em;
-}
-
+/* Navegação */
 .nav {
   margin: 0 12px;
   padding: 13px 14px;
@@ -121,13 +126,9 @@ button:focus-visible {
   line-height: 1.5;
 }
 
-.mini {
-  width: 28px;
-  height: 28px;
-  margin: 14px auto 0;
-}
-
-/* ÁREA PRINCIPAL */
+/* =========================================
+   ÁREA PRINCIPAL E HEADER
+   ========================================= */
 
 .main {
   flex: 1;
@@ -137,8 +138,6 @@ button:focus-visible {
   flex-direction: column;
   overflow: hidden;
 }
-
-/* HEADER */
 
 .topbar {
   height: 74px;
@@ -649,7 +648,7 @@ button:focus-visible {
 }
 
 /* ============================================================
-   HOVER DA PLANTA (versão nova: letras maiores, fundo sólido)
+   HOVER DA PLANTA
    ============================================================ */
 
 .hovercard {
